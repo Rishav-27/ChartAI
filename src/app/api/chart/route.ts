@@ -1,9 +1,5 @@
-import { OpenAI } from "openai";
+import { openai } from "@/lib/openai";
 import { NextRequest, NextResponse } from "next/server";
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 export async function POST(req: NextRequest) {
   try {
@@ -22,8 +18,7 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: "system",
-content: `You are a chart data generator. You only respond with JSON using function call. Given a prompt, determine the most appropriate chart type (bar, pie, line, doughnut, radar, polarArea, scatter, bubble, etc.) based on the data context. Output a complete structured chart data object.`,
-
+          content: `You are a chart data generator. You only respond with JSON using function call. Given a prompt, determine the most appropriate chart type (bar, pie, line, doughnut, radar, polarArea, scatter, bubble, etc.) based on the data context. Output a complete structured chart data object.`,
         },
         {
           role: "user",
@@ -41,7 +36,8 @@ content: `You are a chart data generator. You only respond with JSON using funct
               properties: {
                 chartType: {
                   type: "string",
-                  description: "The most appropriate chart type for the given prompt. Examples: bar, pie, line, doughnut, radar, polarArea, scatter, bubble, etc.",
+                  description:
+                    "The most appropriate chart type for the given prompt. Examples: bar, pie, line, doughnut, radar, polarArea, scatter, bubble, etc.",
                 },
                 title: { type: "string" },
                 labels: {
