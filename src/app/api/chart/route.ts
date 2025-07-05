@@ -1,15 +1,12 @@
 import { openai } from "@/lib/openai";
 import { NextRequest, NextResponse } from "next/server";
 
-export async function POST(_req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     const { prompt } = await req.json();
 
     if (!prompt) {
-      return NextResponse.json(
-        { error: "Prompt is required." },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Prompt is required." }, { status: 400 });
     }
 
     const response = await openai.chat.completions.create({
@@ -36,8 +33,7 @@ export async function POST(_req: NextRequest) {
               properties: {
                 chartType: {
                   type: "string",
-                  description:
-                    "The most appropriate chart type for the given prompt. Examples: bar, pie, line, doughnut, radar, polarArea, scatter, bubble, etc.",
+                  description: "The chart type (bar, pie, etc.)",
                 },
                 title: { type: "string" },
                 labels: {
@@ -74,17 +70,22 @@ export async function POST(_req: NextRequest) {
       },
     });
 
-    const toolCall = response.choices[0]?.message?.tool_calls?.[0];
-    const chartJson = toolCall?.function?.arguments;
+    const toolCall = response.choices?.[0]?.message?.tool_calls?.[0];
 
-    if (!chartJson) {
-      return NextResponse.json(
-        { error: "No chart data returned." },
-        { status: 500 }
-      );
+    if (!toolCall || !toolCall.function?.arguments) {
+      console.error("No function call returned by GPT:", response);
+      return NextResponse.json({ error: "No chart data returned." }, { status: 500 });
     }
 
-    return NextResponse.json(JSON.parse(chartJson));
+    let chartData;
+    try {
+      chartData = JSON.parse(toolCall.function.arguments);
+    } catch (err) {
+      console.error("Failed to parse function.arguments as JSON:", toolCall.function.arguments);
+      return NextResponse.json({ error: "Invalid chart data returned." }, { status: 500 });
+    }
+
+    return NextResponse.json(chartData);
   } catch (error) {
     console.error("[CHART_API_ERROR]", error);
     return NextResponse.json(
