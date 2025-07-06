@@ -6,7 +6,10 @@ export async function POST(req: NextRequest) {
     const { prompt } = await req.json();
 
     if (!prompt) {
-      return NextResponse.json({ error: "Prompt is required." }, { status: 400 });
+      return NextResponse.json(
+        { error: "Prompt is required." },
+        { status: 400 }
+      );
     }
 
     const response = await openai.chat.completions.create({
@@ -74,15 +77,24 @@ export async function POST(req: NextRequest) {
 
     if (!toolCall || !toolCall.function?.arguments) {
       console.error("No function call returned by GPT:", response);
-      return NextResponse.json({ error: "No chart data returned." }, { status: 500 });
+      return NextResponse.json(
+        { error: "No chart data returned." },
+        { status: 500 }
+      );
     }
 
     let chartData;
     try {
       chartData = JSON.parse(toolCall.function.arguments);
     } catch (err) {
-      console.error("Failed to parse function.arguments as JSON:", toolCall.function.arguments);
-      return NextResponse.json({ error: "Invalid chart data returned." }, { status: 500 });
+      console.error(
+        "Failed to parse function.arguments as JSON:",
+        toolCall.function.arguments
+      );
+      return NextResponse.json(
+        { error: "Invalid chart data returned." },
+        { status: 500 }
+      );
     }
 
     return NextResponse.json(chartData);

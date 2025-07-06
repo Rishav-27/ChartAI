@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Bar,
-  Line,
-  Pie,
-  Doughnut,
-  Radar,
-  PolarArea,
-} from "react-chartjs-2";
+import { Bar, Line, Pie, Doughnut, Radar, PolarArea } from "react-chartjs-2";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -24,7 +17,6 @@ import {
 
 import { ChartDataType } from "@/types/chart";
 
-// Register Chart.js components
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -39,12 +31,9 @@ ChartJS.register(
 );
 
 export default function ChartRenderer({ data }: { data: ChartDataType }) {
-  // ✅ Handle missing data gracefully
   if (!data || !data.chartType || !data.labels || !data.datasets) {
     return (
-      <div className="text-center text-red-500 p-4">
-        Invalid chart data
-      </div>
+      <div className="text-center text-red-500 p-4">Invalid chart data</div>
     );
   }
 
@@ -56,7 +45,7 @@ export default function ChartRenderer({ data }: { data: ChartDataType }) {
     pie: Pie,
     doughnut: Doughnut,
     radar: Radar,
-    polararea: PolarArea, // note: lowercase key to match .toLowerCase()
+    polararea: PolarArea,
   }[chartType];
 
   if (!ChartComponent) {
@@ -87,7 +76,7 @@ export default function ChartRenderer({ data }: { data: ChartDataType }) {
   };
 
   return (
-    <div className="w-full max-w-[600px] h-[400px] mx-auto">
+    <div className="w-full max-w-[500px] h-[300px] mx-auto">
       <ChartComponent data={chartData} options={options} />
     </div>
   );
