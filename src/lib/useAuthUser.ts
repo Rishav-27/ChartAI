@@ -1,12 +1,12 @@
 // lib/useAuthUser.ts (or a more descriptive path like hooks/useAuthUser.ts)
 "use client";
-
+import { User } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
 // IMPORT THE CORRECT CLIENT HERE:
 import { createClient } from "@/utils/supabase/client"; // Use your modern browser client
 
 export function useAuthUser() {
-  const [user, setUser] = useState<any>(null); // Consider using Supabase's User type
+  const [user, setUser] = useState<User | null>(null); // Consider using Supabase's User type
 
   useEffect(() => {
     const supabase = createClient(); // Initialize client inside useEffect or memoize

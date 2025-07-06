@@ -1,23 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { User } from "@supabase/supabase-js";
+
 import Sidebar from "@/components/Sidebar";
 import Navbar from "@/components/Navbar";
 import ChatHistory from "@/components/ChatHistory";
 import ChatInput from "@/components/ChatInput";
 import { ChartDataType } from "@/types/chart";
 import { createClient } from "@/utils/supabase/client";
-import {
-  PromptChartMessage,
-  ChatSession,
-  SidebarChatSession,
-} from "@/types/chat";
-import { useRouter } from "next/navigation";
+import type { PromptChartMessage, SidebarChatSession } from "@/types/chat";
 
 export default function Home() {
   const supabase = createClient();
-
   const router = useRouter();
+
+  const [user, setUser] = useState<User | null>(null);
+  const [loadingUser, setLoadingUser] = useState(true);
+  const [loadingChats, setLoadingChats] = useState(true);
   const [currentChatMessages, setCurrentChatMessages] = useState<
     PromptChartMessage[]
   >([]);
@@ -28,9 +29,25 @@ export default function Home() {
     SidebarChatSession[]
   >([]);
 
-  const [user, setUser] = useState<any>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
-  const [loadingChats, setLoadingChats] = useState(true);
+  const loadChatSessions = useCallback(
+    async (userId: string) => {
+      setLoadingChats(true);
+      const { data, error } = await supabase
+        .from("user_chat_sessions")
+        .select("id, title")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("Failed to load chat sessions:", error);
+      } else {
+        setAllChatSessionsMeta(data as SidebarChatSession[]);
+      }
+
+      setLoadingChats(false);
+    },
+    [supabase]
+  );
 
   useEffect(() => {
     const checkUser = async () => {
@@ -64,35 +81,16 @@ export default function Home() {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, [router]);
-
-  const loadChatSessions = async (userId: string) => {
-    setLoadingChats(true);
-    const { data, error } = await supabase
-      .from("user_chat_sessions")
-      .select("id, title")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
-
-    if (error) {
-      console.error("Failed to load chat sessions:", error.message);
-    } else {
-      setAllChatSessionsMeta(data as SidebarChatSession[]);
-    }
-    setLoadingChats(false);
-  };
+  }, [router, loadChatSessions, supabase.auth]);
 
   useEffect(() => {
     if (user && !loadingUser) {
       loadChatSessions(user.id);
     }
-  }, [user, loadingUser]);
+  }, [user, loadingUser, loadChatSessions]);
 
   const handleSend = async (prompt: string, chart: ChartDataType) => {
-    if (!user) {
-      router.push("/login");
-      return;
-    }
+    if (!user) return router.push("/login");
 
     const newPromptChart: PromptChartMessage = { prompt, chartData: chart };
     const updatedMessages = [...currentChatMessages, newPromptChart];
@@ -103,14 +101,14 @@ export default function Home() {
         .from("user_chat_sessions")
         .insert({
           user_id: user.id,
-          title: prompt.slice(0, 50) + (prompt.length > 50 ? "..." : ""),
+          title: prompt.length > 50 ? `${prompt.slice(0, 47)}...` : prompt,
           messages: updatedMessages,
         })
         .select("id, title")
         .single();
 
       if (error) {
-        console.error("Failed to create new chat session:", error.message);
+        console.error("Failed to create new chat session:", error);
         setCurrentChatMessages(currentChatMessages);
       } else if (data) {
         setCurrentChatSessionId(data.id);
@@ -125,9 +123,8 @@ export default function Home() {
         .update({ messages: updatedMessages })
         .eq("id", currentChatSessionId)
         .eq("user_id", user.id);
-
       if (error) {
-        console.error("Failed to update chat session:", error.message);
+        console.error("Failed to update chat session:", error.message );
         setCurrentChatMessages(currentChatMessages);
       }
     }
@@ -139,10 +136,8 @@ export default function Home() {
   };
 
   const handleSelectChat = async (sessionId: string) => {
-    if (!user) {
-      router.push("/login");
-      return;
-    }
+    if (!user) return router.push("/login");
+
     setLoadingChats(true);
     const { data, error } = await supabase
       .from("user_chat_sessions")
@@ -152,20 +147,19 @@ export default function Home() {
       .single();
 
     if (error) {
-      console.error("Failed to load selected chat session:", error.message);
+      console.error("Failed to load selected chat session:", error);
     } else if (data) {
       setCurrentChatMessages(data.messages as PromptChartMessage[]);
       setCurrentChatSessionId(sessionId);
     }
+
     setLoadingChats(false);
   };
 
   const handleLogout = async () => {
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.error("Logout error:", error.message);
-    } else {
-      // State will be cleared by auth listener, and redirect will happen
+      console.error("Logout error:", error);
     }
   };
 
@@ -177,13 +171,11 @@ export default function Home() {
     );
   }
 
-  if (!user) {
-    return null;
-  }
+  if (!user) return null;
 
   return (
     <div className="flex min-h-screen font-sans bg-gray-50 text-black">
-      <div className="w-[250px] fixed top-0 left-0 bottom-0  bg-white z-20 ">
+      <div className="w-[250px] fixed top-0 left-0 bottom-0 bg-white z-20">
         <Sidebar
           onNewChat={startNewChat}
           onSelectChat={handleSelectChat}
@@ -192,6 +184,7 @@ export default function Home() {
           onLogout={handleLogout}
         />
       </div>
+
       <div className="ml-[256px] flex-1 flex flex-col max-h-screen bg-[#f9fafb]">
         <div className="sticky top-0 z-30 bg-white shadow-sm">
           <Navbar
@@ -209,7 +202,7 @@ export default function Home() {
           />
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6 max-w-3xl mx-auto w-full">
           {loadingChats ? (
             <div className="text-center mt-10 text-gray-400 text-sm">
               Loading chat history...
@@ -219,7 +212,7 @@ export default function Home() {
           )}
         </div>
 
-        <div className="sticky bottom-0 z-20  px-6 py-2 ">
+        <div className="sticky bottom-0 z-20 px-6 py-2 bg-white/60 backdrop-blur-md">
           <ChatInput onSend={handleSend} />
         </div>
       </div>

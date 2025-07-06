@@ -12,7 +12,7 @@ export interface ChartDataset {
   backgroundColor?: string | string[];
   borderColor?: string | string[];
   borderWidth?: number;
-  [key: string]: any;
+  [key: string]: string | number | string[] | number[] | undefined; 
 }
 
 export interface ChartDataType {

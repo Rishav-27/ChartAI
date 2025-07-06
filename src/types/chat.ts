@@ -1,6 +1,7 @@
+import { ChartDataType } from "./chart";
 export interface PromptChartMessage {
   prompt: string;
-  chartData: any;
+  chartData: ChartDataType;
 }
 
 export interface ChatSession {

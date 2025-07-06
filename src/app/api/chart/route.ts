@@ -1,18 +1,31 @@
 import { openai } from "@/lib/openai";
 import { NextRequest, NextResponse } from "next/server";
 
+// Define supported chart types (for validation if needed)
+const supportedChartTypes = [
+  "bar",
+  "line",
+  "pie",
+  "doughnut",
+  "radar",
+  "polarArea",
+  "scatter",
+  "bubble",
+];
+
 export async function POST(req: NextRequest) {
   try {
-    const { prompt } = await req.json();
+    const body = await req.json();
+    const prompt = body?.prompt;
 
-    if (!prompt) {
+    if (!prompt || typeof prompt !== "string") {
       return NextResponse.json(
-        { error: "Prompt is required." },
+        { error: "Prompt is required and must be a string." },
         { status: 400 }
       );
     }
 
-    const response = await openai.chat.completions.create({
+    const aiResponse = await openai.chat.completions.create({
       model: "gpt-4o",
       temperature: 0.7,
       messages: [
@@ -38,7 +51,9 @@ export async function POST(req: NextRequest) {
                   type: "string",
                   description: "The chart type (bar, pie, etc.)",
                 },
-                title: { type: "string" },
+                title: {
+                  type: "string",
+                },
                 labels: {
                   type: "array",
                   items: { type: "string" },
@@ -73,27 +88,33 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    const toolCall = response.choices?.[0]?.message?.tool_calls?.[0];
+    const toolCall = aiResponse.choices[0]?.message?.tool_calls?.[0];
 
     if (!toolCall || !toolCall.function?.arguments) {
-      console.error("No function call returned by GPT:", response);
+      console.error("No tool function arguments returned:", aiResponse);
       return NextResponse.json(
-        { error: "No chart data returned." },
+        { error: "Chart generation failed. Try a different prompt." },
         { status: 500 }
       );
     }
 
+    // Parse JSON safely
     let chartData;
     try {
       chartData = JSON.parse(toolCall.function.arguments);
-    } catch (err) {
-      console.error(
-        "Failed to parse function.arguments as JSON:",
-        toolCall.function.arguments
-      );
+    } catch (parseError) {
+      console.error("JSON parse error:", parseError,toolCall.function.arguments);
       return NextResponse.json(
-        { error: "Invalid chart data returned." },
+        { error: "Failed to parse chart data." },
         { status: 500 }
+      );
+    }
+
+    // Optional: validate chart type
+    if (!supportedChartTypes.includes(chartData.chartType)) {
+      return NextResponse.json(
+        { error: `Unsupported chart type: ${chartData.chartType}` },
+        { status: 400 }
       );
     }
 
@@ -101,7 +122,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error("[CHART_API_ERROR]", error);
     return NextResponse.json(
-      { error: "Something went wrong." },
+      { error: "Internal server error. Please try again later." },
       { status: 500 }
     );
   }
